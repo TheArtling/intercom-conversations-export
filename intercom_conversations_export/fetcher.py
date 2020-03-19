@@ -1,8 +1,8 @@
-import os
-import json
-import requests
-import datetime
 from pathlib import Path
+import datetime
+import json
+import os
+import requests
 
 from settings import OUTPUT_PATH, INTERCOM_TOKEN
 
@@ -14,8 +14,16 @@ headers = {
     'Accept': 'application/json'
 }
 
-# make conversations folder if not already made
-# os.makedirs('conversations')
+
+def create_folders():
+    single_conversations_path = os.path.join(OUTPUT_PATH, 'raw_data',
+                                             'single_conversations')
+    conversation_pages_path = os.path.join(OUTPUT_PATH, 'raw_data',
+                                           'conversation_pages')
+    os.makedirs(single_conversations_path)
+    print(f"Created {single_conversations_path}")
+    os.makedirs(conversation_pages_path)
+    print(f"Created {conversation_pages_path}")
 
 
 def check_rate_limit(resp):
@@ -26,7 +34,7 @@ def check_rate_limit(resp):
 
 
 def write_conversations(data, page):
-    path = os.path.join(OUTPUT_PATH, 'conversations', f"page_{page}.json")
+    path = os.path.join(OUTPUT_PATH, 'conversation_pages', f"page_{page}.json")
     print(f"Writing page {page} to file")
     with open(path, 'w') as file:
         json.dump(data, file)
@@ -63,6 +71,7 @@ def get_next_pages(next_page_url):
 
 
 def run_all_conversations():
+    create_folders()
     data, page, total_pages = get_first_page()
     write_conversations(data, page)
 
@@ -72,9 +81,6 @@ def run_all_conversations():
         write_conversations(data, page)
 
 
-# run_all_conversations()
-
-
 def get_conversation_ids(data):
     conversations = data['conversations']
     conversation_ids = []
@@ -82,61 +88,32 @@ def get_conversation_ids(data):
         conversation_ids.append(conversation['id'])
     return conversation_ids
 
-    print(f"Requesting id: {conversation_ids[1]}")
-
 
 def get_single_conversation(id):
+    print(f"Requesting id: {id}")
     url = 'https://api.intercom.io/conversations/' + id
-    print(f"Getting conversations from id: {id}")
     resp = requests.get(url, headers=headers)
     check_rate_limit(resp)
+    data = resp.json()
 
-    return resp.json()
-
-
-def parse_conversation_parts(convo):
-    parts = convo['conversation_parts']['conversation_parts']
-    parts_array = []
-    import ipdb
-    ipdb.set_trace()
-    for part in parts:
-
-        author = part['author']['name']
-        if author == None:
-            author = part['author']['id']
-        author_type = part['author']['type']
-        ts = part['created_at']
-        time = datetime.datetime.fromtimestamp(
-            ts, tz=LOCAL_TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
-        body = part['body']
-        message = f"---------------------------\n{time} \n{author} - {author_type} \n{body}\n"
-        parts_array.append(message)
-
-    return parts_array
+    return data
 
 
-def write_conversation_parts(parts):
-    total_count = len(parts)
-    output_path = os.path.join(OUTPUT_PATH, 'conversations', 'thing')
-    with open(output_path, 'w') as file:
-        file.write(f"Total parts: {total_count}\n")
-        file.writelines(parts)
-    return
+def run_all_single_conversations():
+    directory = os.path.join(OUTPUT_PATH, 'conversation_pages')
+    for file in os.listdir(directory):
+        file_path = os.path.join(directory, file)
+        with open(file_path) as json_file:
+            data = json.load(json_file)
+            conversation_ids = get_conversation_ids(data)
+
+        for id in conversation_ids:
+            data = get_single_conversation(id)
+            path = os.path.join(OUTPUT_PATH, 'conversations', f"id_{id}.json")
+            print(f"Writing {id} to file")
+            with open(path, 'w') as file:
+                json.dump(data, file)
 
 
-def run_single_conversations():
-    conversation_ids = get_conversation_ids(data)
-    for id in conversation_ids:
-        get_single_conversation(id)
-        convo = get_single_conversation(id)
-        parts = parse_conversation_parts(convo)
-        write_conversation_parts(parts)
-
-
-# file.write(resp.content)
-# import json
-# content = None
-# with open('filename.json', 'r') as file:
-#     content = file.read()
-
-# data = json.loads(content)
+run_all_conversations()
+run_all_single_conversations()

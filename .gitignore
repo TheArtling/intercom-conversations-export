@@ -1,4 +1,5 @@
 settings.py
 __pycache__
 conversations
+raw_data
 .DS_Store
