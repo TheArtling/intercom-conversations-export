@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-# from pathlib import Path
 from urllib.parse import urlparse
 import datetime
 import json
@@ -10,6 +9,12 @@ from settings import OUTPUT_PATH
 
 LOCAL_TIMEZONE = datetime.datetime.now(
     datetime.timezone.utc).astimezone().tzinfo
+
+
+def parse_timestamp(ts, format):
+    time = datetime.datetime.fromtimestamp(ts,
+                                           tz=LOCAL_TIMEZONE).strftime(format)
+    return time
 
 
 def get_folder_name(convo):
@@ -27,21 +32,23 @@ def check_for_image(body, folder_path):
     soup = BeautifulSoup(body, "html5lib")
     try:
         image_link = soup.img['src']
-        print(image_link)
-        resp = requests.get(image_link)
-        title = os.path.basename(urlparse(image_link).path)
-        folder_path = os.path.join(folder_path, title)
-        with open(folder_path, 'wb') as file:
-            file.write(resp.content)
-        return title
+        path = urlparse(image_link).path
+        title = os.path.split(
+            os.path.dirname(path))[1] + "--" + os.path.basename(path)
+        print(f"getting image {title}")
+        image_file_path = os.path.join(folder_path, title)
+        if not os.path.exists(image_file_path):
+            resp = requests.get(image_link)
+            with open(image_file_path, 'wb') as file:
+                file.write(resp.content)
+            return title
     except:
         return
 
 
 def get_file_name(convo):
     ts = convo['created_at']
-    time = datetime.datetime.fromtimestamp(
-        ts, tz=LOCAL_TIMEZONE).strftime('%Y_%m_%d_%I_%M_%p')
+    time = parse_timestamp(ts, '%Y_%m_%d_%I_%M_%p')
     return time
 
 
@@ -50,13 +57,16 @@ def parse_body(body, folder_path):
     soup = BeautifulSoup(body, 'html5lib')
     parsed_body = soup.get_text()
     if soup.a:
-        # links = soup.findAll('a')
-        # link_array = []
-        # for link in links:
-        #     if link['href']:
-        #         link_array.append(link['href'])
-
-        link = f" ({soup.a['href']})"
+        link_array = []
+        links = soup.findAll('a')
+        for link in links:
+            try:
+                href = link['href']
+                link_array.append(href)
+            except:
+                continue
+        link_str = ', '.join(link_array)
+        link = f" ({link_str})"
         parsed_body = parsed_body + link
     if image_title:
         parsed_body = "[Image " + image_title + "]"
@@ -73,12 +83,6 @@ def parse_author(author_dict):
         author = author_detail + " - " + author_type
         return author
     return author_type.capitalize()
-
-
-def parse_timestamp(ts, format):
-    time = datetime.datetime.fromtimestamp(ts,
-                                           tz=LOCAL_TIMEZONE).strftime(format)
-    return time
 
 
 def parse_conversation(convo, folder_path):
@@ -140,7 +144,6 @@ def parse_conversation(convo, folder_path):
 
 
 def write_conversation_parts(txt_array, file_path):
-    print(f"Writing {file_path}")
     with open(file_path, 'w') as file:
         for line in txt_array:
             file.write(line + "\n")
@@ -150,7 +153,13 @@ def write_conversation_parts(txt_array, file_path):
 def run():
     raw_conversations_path = os.path.join(OUTPUT_PATH, 'raw_data',
                                           'single_conversations')
+    counter = 0
+    all_convo_files = next(os.walk(raw_conversations_path))[2]
+    total_convos = len(all_convo_files)
+
     for file in os.listdir(raw_conversations_path):
+        counter += 1
+        print(f"Writing file {counter} of {total_convos}")
         file_path = os.path.join(raw_conversations_path, file)
         with open(file_path) as json_file:
             convo = json.load(json_file)
@@ -160,7 +169,7 @@ def run():
             os.makedirs(folder_path)
             print(f"{folder_name} created")
         except OSError as error:
-            print(f"{folder_name} cannot be created")
+            print(f"{folder_name} already exists")
 
         file_name = get_file_name(convo)
         file_path = os.path.join(folder_path, f"{file_name}.txt")
