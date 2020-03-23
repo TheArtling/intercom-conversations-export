@@ -33,6 +33,7 @@ A conversation text file looks like this:
 ```txt
 Conversation ID: 25272772056
 Started on January 06, 2020 at 10:41 AM +08
+Landed on https://theartling.com/en/art/?country=japan
 ---
 06/01/2020 10:41 AM | Operator - admin : Hi there, Looking for something specific, or have a question about an item? Let me know and I'd be happy to help. 😊
 06/01/2020 10:41 AM | User : hello
