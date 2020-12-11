@@ -20,10 +20,14 @@ def create_folders():
                                              'single_conversations')
     conversation_pages_path = os.path.join(OUTPUT_PATH, 'raw_data',
                                            'conversation_pages')
-    os.makedirs(single_conversations_path)
-    print(f"Created {single_conversations_path}")
-    os.makedirs(conversation_pages_path)
-    print(f"Created {conversation_pages_path}")
+
+    if not os.path.exists(single_conversations_path):
+        os.makedirs(single_conversations_path)
+        print(f"Created {single_conversations_path}")
+
+    if not os.path.exists(conversation_pages_path):
+        os.makedirs(conversation_pages_path)
+        print(f"Created {conversation_pages_path}")
 
 
 def check_rate_limit(resp):
@@ -34,7 +38,7 @@ def check_rate_limit(resp):
 
 
 def write_conversations(data, page):
-    path = os.path.join(OUTPUT_PATH, 'conversation_pages', f"page_{page}.json")
+    path = os.path.join(OUTPUT_PATH, 'raw_data', 'conversation_pages', f"page_{page}.json")
     print(f"Writing page {page} to file")
     with open(path, 'w') as file:
         json.dump(data, file)
@@ -100,7 +104,7 @@ def get_single_conversation(id):
 
 
 def run_all_single_conversations():
-    directory = os.path.join(OUTPUT_PATH, 'conversation_pages')
+    directory = os.path.join(OUTPUT_PATH, 'raw_data', 'conversation_pages')
     for file in os.listdir(directory):
         file_path = os.path.join(directory, file)
         with open(file_path) as json_file:
@@ -109,7 +113,7 @@ def run_all_single_conversations():
 
         for id in conversation_ids:
             data = get_single_conversation(id)
-            path = os.path.join(OUTPUT_PATH, 'conversations', f"id_{id}.json")
+            path = os.path.join(OUTPUT_PATH, 'raw_data', 'single_conversations', f"id_{id}.json")
             print(f"Writing {id} to file")
             with open(path, 'w') as file:
                 json.dump(data, file)
